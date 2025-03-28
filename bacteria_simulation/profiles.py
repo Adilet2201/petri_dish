@@ -1,0 +1,72 @@
+SPECIES_PROFILES = {
+    "Coccus": {
+        "color": "#FF0000",
+        "growth_rate": 0.1,
+        "max_size_before_division": 10,
+        "nutrient_consumption": 0.05,
+        "shape": "coccus",
+        "min_temp": 0,
+        "max_temp": 40,
+        "optimal_temp": 30,
+        "min_ph": 5.5,
+        "max_ph": 8.5,
+        "optimal_ph": 7.0,
+        "resistance": 0.1
+    },
+    "Rod": {
+        "color": "#00AAFF",
+        "growth_rate": 0.15,
+        "max_size_before_division": 12,
+        "nutrient_consumption": 0.07,
+        "shape": "rod",
+        "min_temp": 5,
+        "max_temp": 45,
+        "optimal_temp": 35,
+        "min_ph": 6.0,
+        "max_ph": 9.0,
+        "optimal_ph": 7.5,
+        "resistance": 0.5
+    },
+    "Spirillum": {
+        "color": "#55FF55",
+        "growth_rate": 0.08,
+        "max_size_before_division": 14,
+        "nutrient_consumption": 0.06,
+        "shape": "spirillum",
+        "min_temp": 10,
+        "max_temp": 50,
+        "optimal_temp": 40,
+        "min_ph": 6.0,
+        "max_ph": 9.5,
+        "optimal_ph": 8.0,
+        "resistance": 0.8
+    },
+    "Virus": {
+        "color": "#FFFF00",
+        "growth_rate": 0.0,           
+        "max_size_before_division": 5, 
+        "nutrient_consumption": 0.0,   
+        "shape": "virus",
+        "min_temp": -10,
+        "max_temp": 60,
+        "optimal_temp": 30,
+        "min_ph": 2.0,
+        "max_ph": 10.0,
+        "optimal_ph": 7.0,
+        "resistance": 0.9
+    },
+    "Fungus": {
+        "color": "#AA55AA",
+        "growth_rate": 0.02,
+        "max_size_before_division": 20,
+        "nutrient_consumption": 0.1,
+        "shape": "fungus",
+        "min_temp": 0,
+        "max_temp": 45,
+        "optimal_temp": 25,
+        "min_ph": 4.0,
+        "max_ph": 9.0,
+        "optimal_ph": 6.5,
+        "resistance": 0.3
+    }
+}
