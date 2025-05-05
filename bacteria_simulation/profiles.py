@@ -1,0 +1,46 @@
+# bacteria_simulation/profiles.py
+SPECIES_PROFILES = {
+    "Coccus": {
+        "color": "#FF0000",
+        "shape": "coccus",
+        "growth_rate": 0.12,
+        "nutrient_consumption": 0.05,
+        "division_period_min": 20,
+        "resistance": 0.10,
+        "min_temp": 0,  "max_temp": 40, "optimal_temp": 30,
+        "min_ph": 5.5, "max_ph": 8.5, "optimal_ph": 7.0,
+    },
+    "Rod": {
+        "color": "#0090FF",
+        "shape": "rod",
+        "growth_rate": 0.15,
+        "nutrient_consumption": 0.07,
+        "division_period_min": 18,
+        "resistance": 0.40,
+        "min_temp": 5,  "max_temp": 45, "optimal_temp": 35,
+        "min_ph": 6.0, "max_ph": 9.0, "optimal_ph": 7.5,
+    },
+    "Spirillum": {
+        "color": "#44DD44",
+        "shape": "spirillum",
+        "growth_rate": 0.10,
+        "nutrient_consumption": 0.06,
+        "division_period_min": 25,
+        "resistance": 0.70,
+        "min_temp": 10, "max_temp": 50, "optimal_temp": 40,
+        "min_ph": 6.0, "max_ph": 9.5, "optimal_ph": 8.0,
+    },
+    "Fungus": {
+        "color": "#AA55AA",
+        "shape": "fungus",
+        "growth_rate": 0.02,
+        "nutrient_consumption": 0.10,
+        "max_size_before_spores": 20,
+        "antibacterial_ability": 0.25,        # 25 % штаммов умеют
+        "antibacterial_radius": 35,
+        "antibacterial_strength": 0.04,
+        "min_temp": 0,  "max_temp": 45, "optimal_temp": 25,
+        "min_ph": 4.0, "max_ph": 9.0, "optimal_ph": 6.5,
+        "resistance": 0.30,
+    },
+}
