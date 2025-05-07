@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, current_app, render_template
-from ..simulation.updater import _pack      # для мгновенного state_update
+from ..simulation.updater import _pack
 
 bp = Blueprint("routes", __name__)
 
@@ -15,11 +15,9 @@ def index():
 def update_environment():
     env = current_app.config["env"]
     d   = request.json or {}
-
     if "temperature"     in d: env.temperature      = float(d["temperature"])
     if "ph"              in d: env.ph               = float(d["ph"])
     if "speedMultiplier" in d: env.speed_multiplier = float(d["speedMultiplier"])
-
     return jsonify(ok=True)
 
 
@@ -28,38 +26,22 @@ def update_environment():
 def add_organism():
     env  = current_app.config["env"]
     data = request.json or {}
-
-    # координаты клика
     x, y = float(data["x"]), float(data["y"])
     sp   = data.get("species", "Coccus")
 
-    # гарантируем, что точка внутри круга R = 250
-    cx = cy = 250
-    r2 = 250 ** 2
-    if (x - cx) ** 2 + (y - cy) ** 2 > r2:
-        dx, dy = x - cx, y - cy
-        dist   = (dx * dx + dy * dy) ** 0.5
-        x = cx + dx / dist * 250
-        y = cy + dy / dist * 250
-
-    # создаём организм
     from ..simulation.organisms import Bacterium, Fungus
     prof = current_app.config["profiles"][sp]
-
     env.organisms.append(
-        Fungus(x, y, prof) if prof["shape"] == "fungus"
-        else Bacterium(x, y, prof)
+        Fungus(x, y, prof) if prof["shape"] == "fungus" else Bacterium(x, y, prof)
     )
 
-    # сразу шлём клиентам новый state_update,
-    # даже если симуляция стоит на паузе
+    # мгновенный снапшот
     socketio = current_app.config["socketio"]
     socketio.emit("state_update", _pack(env))
-
     return jsonify(added=sp)
 
 
-# --- alias для старого фронта ---
+# alias для старого энд-пойнта
 @bp.route("/add_bacterium", methods=["POST"])
 def alias_add_bacterium():
     return add_organism()
@@ -70,10 +52,19 @@ def alias_add_bacterium():
 def antibiotic():
     env = current_app.config["env"]
     d   = request.json or {}
-
-    env.add_antibiotic_drop(
-        float(d["x"]), float(d["y"]),
-        float(d.get("radius", 50)),
-        int  (d.get("level", 1))
-    )
+    env.add_antibiotic_drop(float(d["x"]), float(d["y"]),
+                            float(d.get("radius", 50)),
+                            int  (d.get("level", 1)))
     return jsonify(ok=True)
+
+
+# ───────── CLEAR ─────────
+@bp.route("/clear_organisms", methods=["POST"])
+def clear_organisms():
+    env = current_app.config["env"]
+    env.organisms.clear()
+    env.newborn.clear()
+
+    socketio = current_app.config["socketio"]
+    socketio.emit("state_update", _pack(env))
+    return jsonify(cleared=True)
