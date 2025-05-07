@@ -1,0 +1,41 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - prefinal
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Log in to AWS ECR
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: us-east-1
+      run: |
+        aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+        aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+        aws configure set default.region $AWS_REGION
+        aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin <YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
+
+    - name: Build Docker image
+      run: |
+        docker build -t prefinal-app .
+
+    - name: Tag Docker image
+      run: |
+        docker tag prefinal-app:latest <YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/prefinal-app:latest
+
+    - name: Push Docker image to ECR
+      run: |
+        docker push <YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/prefinal-app:latest
+
+    - name: Deploy to ECS
+      run: |
+        aws ecs update-service --cluster my-cluster --service my-service --force-new-deployment
