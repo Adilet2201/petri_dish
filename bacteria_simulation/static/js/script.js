@@ -1,10 +1,7 @@
 /* bacteria_simulation/static/js/script.js
- * полностью самодостаточный; все DOM-элементы проверяются
- * на null, поэтому скрипт не падает, даже если какого-то
- * слайдера или кнопки нет в шаблоне.
+ * полностью самодостаточный, с плавной анимацией 20 FPS
  */
 document.addEventListener("DOMContentLoaded", () => {
-
   /* ───── helpers ───── */
   const $ = id => document.getElementById(id);
   const post = (url, obj) =>
@@ -18,27 +15,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const socket = io();
 
   /* ───── Pixi init ───── */
-  const app = new PIXI.Application({
-    width: 500,
-    height: 500,
-    backgroundAlpha: 0
-  });
+  const app = new PIXI.Application({ width: 500, height: 500, backgroundAlpha: 0 });
+  const layer   = new PIXI.Container();   // спрайты организмов
+  const abLayer = new PIXI.Container();   // визуал антибиотика
+  app.stage.addChild(layer, abLayer);
 
   const pixiContainer = $("pixiContainer");
   if (pixiContainer) pixiContainer.appendChild(app.view);
 
-  const layer   = new PIXI.Container(); // организмов
-  const abLayer = new PIXI.Container(); // антибиотика
-  app.stage.addChild(layer, abLayer);
-
   /* ───── UI refs ───── */
   const speciesSel = $("speciesSelect");
-
   const tempS  = $("tempSlider"),  tempVal  = $("tempDisplay");
   const phS    = $("phSlider"),    phVal    = $("phValue");
   const timeS  = $("timeSlider"),  timeVal  = $("timeValue");
   const abS    = $("abSlider"),    abVal    = $("abValue");
-
   const startB = $("startBtn");
   const anaBtn = $("analysisNavBtn");
   const abBtn  = $("antibioticBtn");
@@ -48,20 +38,15 @@ document.addEventListener("DOMContentLoaded", () => {
     tempVal && (tempVal.textContent = e.target.value);
     post("/update_environment", { temperature: +e.target.value });
   };
-
   if (phS) phS.oninput = e => {
     phVal && (phVal.textContent = e.target.value);
     post("/update_environment", { ph: +e.target.value });
   };
-
   if (timeS) timeS.oninput = e => {
     timeVal && (timeVal.textContent = e.target.value + "x");
     post("/update_environment", { speedMultiplier: +e.target.value });
   };
-
-  if (abS) abS.oninput = e => {
-    abVal && (abVal.textContent = e.target.value);
-  };
+  abS && (abS.oninput = e => { abVal && (abVal.textContent = e.target.value); });
 
   /* ───── START / PAUSE ───── */
   if (startB) {
@@ -79,24 +64,18 @@ document.addEventListener("DOMContentLoaded", () => {
   if (abBtn) {
     abBtn.onclick = () => {
       post("/apply_antibiotic", {
-        x: 250,
-        y: 250,
-        radius: 80,
-        level: +(abS?.value ?? 1)        // 0-3
+        x: 250, y: 250, radius: 80,
+        level: +(abS?.value ?? 1)          // 0-3
       }).then(() => drawAb(250, 250, 80));
     };
   }
-
   function drawAb(x, y, r) {
     const g = new PIXI.Graphics();
     g.lineStyle(2, 0xff0000, 0.7)
      .beginFill(0xff0000, 0.2)
      .drawCircle(0, 0, r)
      .endFill();
-    g.x = x; g.y = y;
-    abLayer.addChild(g);
-
-    // плавное исчезновение
+    g.x = x; g.y = y; abLayer.addChild(g);
     app.ticker.add(delta => {
       g.alpha -= 0.01 * delta;
       if (g.alpha <= 0) abLayer.removeChild(g);
@@ -113,47 +92,73 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  /* ───── выбор вида из правой панели ───── */
+  /* ───── выбор вида справа ───── */
   document.querySelectorAll(".select-species").forEach(li => {
     li.style.cursor = "pointer";
     li.onclick = () => {
-      if (speciesSel) speciesSel.value = li.dataset.species;
-      document
-        .querySelectorAll(".select-species")
-        .forEach(x => x.classList.remove("active"));
+      speciesSel && (speciesSel.value = li.dataset.species);
+      document.querySelectorAll(".select-species")
+              .forEach(x => x.classList.remove("active"));
       li.classList.add("active");
     };
   });
 
-  /* ───── сокет-update → рисуем ───── */
-  socket.on("state_update", data => {
-    layer.removeChildren();
+  /* ══════════════  НОВАЯ ЧАСТЬ: плавная анимация  ══════════════ */
+  const sprites = new Map();      // uid → PIXI.Graphics
 
-    (data.organisms || []).forEach(o => {
-      const col = parseInt(o.color.slice(1), 16) || 0x777777;
-      const g   = new PIXI.Graphics();
+  function createSprite(o) {
+    const g = new PIXI.Graphics();
+    const col = parseInt(o.color.slice(1), 16) || 0x777777;
 
-      if (o.shape === "rod") {
-        g.beginFill(col).drawEllipse(0, 0, o.size * 1.5, o.size).endFill();
-        g.rotation = (o.orientation || 0) * Math.PI / 180;
+    if (o.shape === "rod") {
+      g.beginFill(col).drawEllipse(0, 0, 15, 10).endFill();
+    } else if (o.shape === "fungus") {
+      g.beginFill(col).drawEllipse(0, 0, 10, 5).endFill();
+      g.beginFill(col).drawCircle(0, -5, 7).endFill();
+    } else {
+      g.beginFill(col).drawCircle(0, 0, 10).endFill();
+    }
+    layer.addChild(g);
+    return g;
+  }
 
-      } else if (o.shape === "fungus") {
-        g.beginFill(col).drawEllipse(0, 0, o.size, o.size * 0.5).endFill();
-        g.beginFill(col).drawCircle(0, -o.size * 0.5, o.size * 0.7).endFill();
+  socket.on("state_update", snap => {
+    const seen = new Set();
 
-      } else {
-        g.beginFill(col).drawCircle(0, 0, o.size).endFill();
+    (snap.organisms || []).forEach(o => {
+      seen.add(o.uid);
+      let spr = sprites.get(o.uid);
+      if (!spr) {
+        spr = createSprite(o);
+        sprites.set(o.uid, spr);
       }
+      // целевое состояние
+      spr.target = { x: o.x, y: o.y, size: o.size, dead: o.dead };
+    });
 
-      g.x = o.x; g.y = o.y;
-      if (o.dead) g.alpha = 0.4;
-      layer.addChild(g);
+    // удаляем выбывших
+    sprites.forEach((spr, uid) => {
+      if (!seen.has(uid)) {
+        layer.removeChild(spr);
+        sprites.delete(uid);
+      }
+    });
+  });
+
+  // интерполяция позиций и размеров
+  app.ticker.add(() => {
+    sprites.forEach(spr => {
+      if (!spr.target) return;
+      spr.x += (spr.target.x - spr.x) * 0.3;
+      spr.y += (spr.target.y - spr.y) * 0.3;
+      const k = spr.target.size / 10;
+      spr.scale.set(k);
+      spr.alpha = spr.target.dead ? 0.4 : 1;
     });
   });
 
   /* ───── анализ → alert ───── */
-  socket.on("analysis_data", d => alert(
-    `Total: ${d.count}\nBacteria: ${d.bacteria_count}` +
-    `\nFungi: ${d.fungus_count}\nAvg size: ${d.avg_size}`
-  ));
+  socket.on("analysis_data", d =>
+    alert(`Total: ${d.count}\nBacteria: ${d.bacteria_count}` +
+          `\nFungi: ${d.fungus_count}\nAvg size: ${d.avg_size}`));
 });

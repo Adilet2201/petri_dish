@@ -1,42 +1,51 @@
 import numpy as np
 from .spatial_grid import SpatialHash
+from .organisms    import Bacterium, Fungus
+
 
 class Environment:
-    def __init__(self, width=800, height=600, grid_size=60):
-        self.width, self.height = width, height
-        self.grid_size = grid_size
+    """Мир размером 500×500, совпадающий с канвой Pixi."""
 
-        self.temperature = 25.0
-        self.ph = 7.0
+    def __init__(self, width: int = 500, height: int = 500, grid_size: int = 60):
+        self.width, self.height = width, height
+        self.grid_size          = grid_size
+
+        # физ-хим параметры
+        self.temperature      = 25.0
+        self.ph               = 7.0
         self.speed_multiplier = 1.0
 
+        # карта питательных веществ
         self.nutrient_map = np.full((grid_size, grid_size), 6.0, dtype=np.float32)
 
-        self.organisms   = []   # живые и трупы
-        self.newborn     = []   # добавляются в конце шага
-        self.grid        = SpatialHash(cell_size=20)
+        # сущности
+        self.organisms = []     # живые + трупы
+        self.newborn   = []     # пополняется за шаг
+        self.grid      = SpatialHash(cell_size=20)
 
-        # каждый кортеж: (x, y, radius, level(0-3), ttl)
-        self.antibiotic_clouds = []
+        self.antibiotic_clouds = []   # (x, y, r, level, ttl)
+        self.ticks = 0               # счётчик сим-минут
 
-    # ───────── координаты → индексы без выхода за границы ─────────
-    def cell_index(self, x, y) -> tuple[int, int]:
-        col = min(int(x / self.width  * self.grid_size),  self.grid_size - 1)
+    # ───────── helpers ─────────
+    def cell_index(self, x: float, y: float) -> tuple[int, int]:
+        col = min(int(x / self.width  * self.grid_size), self.grid_size - 1)
         row = min(int(y / self.height * self.grid_size), self.grid_size - 1)
         return row, col
 
     # ───────── основной цикл ─────────
-    def update(self, steps=1):
+    def update(self, steps: int = 1):
         for _ in range(steps):
             self._step()
 
     def _step(self):
+        self.ticks += 1
+
         # (1) spatial-hash
         self.grid.clear()
         for o in self.organisms:
             self.grid.add(o)
 
-        # (2) обновляем организмы
+        # (2) обновление организмов
         for o in self.organisms:
             o.update(self)
 
@@ -47,25 +56,22 @@ class Environment:
         self.organisms.extend(self.newborn)
         self.newborn.clear()
 
-        # (5) «трупы» остаются 200 тиков
-        alive_or_visible = []
+        # (5) трупы остаются, но не движутся
         for o in self.organisms:
-            if o.is_alive:
-                alive_or_visible.append(o)
-            else:
-                if not o.dead_body:
-                    o.dead_body = True
-                    o.death_timer = 200
-                o.death_timer -= 1
-                if o.death_timer > 0:
-                    alive_or_visible.append(o)
-        self.organisms = alive_or_visible
+            if not o.is_alive:
+                o.vx = o.vy = 0
+                o.dead_body = True
 
-        # (6) диффузия (раз в 5 тиков)
+        # (6) диффузия / распад
         if np.random.randint(5) == 0:
-            self._diffuse()
+            if self.ticks <= 60 * 30:         # первые 30 сим-минут
+                self._diffuse(replenish=True)
+            else:
+                self._diffuse()
 
-    # ───────── антибиотик ─────────
+    # ──────────────────────────
+    # АНТИБИОТИК
+    # ──────────────────────────
     def _antibiotic_phase(self):
         next_clouds = []
         for x, y, r, level, ttl in self.antibiotic_clouds:
@@ -78,15 +84,21 @@ class Environment:
                 next_clouds.append((x, y, r, level, ttl))
         self.antibiotic_clouds = next_clouds
 
-    def add_antibiotic_drop(self, x, y, radius, level):
+    def add_antibiotic_drop(self, x: float, y: float,
+                            radius: float, level: int):
         self.antibiotic_clouds.append((x, y, radius, level, 100))
 
-    # ───────── диффузия ─────────
-    def _diffuse(self):
+    # ──────────────────────────
+    # ДИФФУЗИЯ + РАСПАД
+    # ──────────────────────────
+    def _diffuse(self, replenish: bool = False):
         self.nutrient_map[:] = (
             (np.roll(self.nutrient_map,  1, 0) +
              np.roll(self.nutrient_map, -1, 0) +
              np.roll(self.nutrient_map,  1, 1) +
-             np.roll(self.nutrient_map, -1, 1) +
-             self.nutrient_map) / 5.0
+             np.roll(self.nutrient_map, -1, 1)) / 4.0
         )
+        self.nutrient_map *= 0.997          # ~0.3 % распада
+
+        if replenish:
+            self.nutrient_map += 0.002      # лёгкая подпитка

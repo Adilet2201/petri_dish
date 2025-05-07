@@ -1,124 +1,161 @@
-# bacteria_simulation/simulation/organisms.py
-import random, math, time
+# --------------------------------------------------------------
+# Организмы с уникальным uid и прежней логикой роста/деления.
+# --------------------------------------------------------------
+import itertools
+import math
+import random
+
+_uid_counter = itertools.count()      # глобальный счётчик uid-ов
+
 
 class Organism:
-    def __init__(self, x, y, profile, size=5.0):
+    # геометрия круглой чашки 500×500 → R = 250
+    DISH_R = 250
+    DISH_CX = DISH_CY = 250
+
+    def __init__(self, x: float, y: float, profile: dict, size: float = 5.0):
+        self.uid = next(_uid_counter)        # ← уникальный id
+
         self.x, self.y = x, y
         self.size = size
         self.profile = profile
+
         self.shape = profile["shape"]
         self.color = profile["color"]
-        self.vx, self.vy = random.uniform(-4, 4), random.uniform(-4, 4)
+
+        # небольшие стартовые скорости
+        self.vx = random.uniform(-2, 2)
+        self.vy = random.uniform(-2, 2)
+
         self.orientation = random.uniform(0, 360)
         self.is_alive = True
-        self.dead_body = False
-        self.death_timer = 0
+        self.dead_body = False               # для рендера
 
-    # отскок от стен
+    # ───── движение с отражением ─────
     def _move(self, env):
         self.x += self.vx
         self.y += self.vy
-        if self.x < 0 or self.x > env.width:
-            self.vx *= -1; self.x = max(0, min(env.width, self.x))
-        if self.y < 0 or self.y > env.height:
-            self.vy *= -1; self.y = max(0, min(env.height, self.y))
 
-    def update(self, env):
-        pass  # child classes
+        dx = self.x - self.DISH_CX
+        dy = self.y - self.DISH_CY
+        dist2 = dx * dx + dy * dy
+        if dist2 > self.DISH_R ** 2:
+            dist = dist2 ** 0.5
+            nx, ny = dx / dist, dy / dist
+            overlap = dist - self.DISH_R
+            self.x -= nx * overlap
+            self.y -= ny * overlap
+            vn = self.vx * nx + self.vy * ny
+            self.vx -= 2 * vn * nx
+            self.vy -= 2 * vn * ny
 
+    # child classes must override update()
+    def update(self, env): ...
+# --------------------------------------------------------------
 class Bacterium(Organism):
     def __init__(self, x, y, profile):
         super().__init__(x, y, profile, size=5)
-        self.division_ticks = int(profile["division_period_min"] * 60)  # шаг = 1 сек
+        self.division_ticks = int(profile["division_period_min"])
+        self.division_size = profile.get("division_size", 8)
+        self.max_size = profile.get("max_size", 10)
         self.ticks_since_div = random.randrange(self.division_ticks)
 
     def update(self, env):
-        if not self.is_alive: return
+        if not self.is_alive:
+            return
+
         self._nutrition(env)
         self._check_env_limits(env)
+
         self.ticks_since_div += 1
-        if self.ticks_since_div >= self.division_ticks:
+        if (self.ticks_since_div >= self.division_ticks
+                and self.size >= self.division_size):
             self._divide(env)
             self.ticks_since_div = 0
+
         if random.random() < 0.02:
-            # маленькие повороты
             ang = math.radians(random.uniform(-15, 15))
             speed = (self.vx ** 2 + self.vy ** 2) ** 0.5 or 4
             self.vx = math.cos(ang) * speed
             self.vy = math.sin(ang) * speed
+
         self._move(env)
 
-    # --- helpers ---
+    # helpers ----------------------------------------------------
     def _nutrition(self, env):
-        cx, cy = env.cell_index(self.x, self.y)
+        cy, cx = env.cell_index(self.x, self.y)
         food = env.nutrient_map[cy][cx]
         if food > 0:
             eat = min(self.profile["nutrient_consumption"], food)
             env.nutrient_map[cy][cx] -= eat
-            self.size += self.profile["growth_rate"]
+            self.size = min(self.max_size,
+                            self.size + self.profile["growth_rate"])
         else:
-            self.size -= 0.02
-            if self.size < 1: self.is_alive = False
+            self.is_alive = False
 
     def _check_env_limits(self, env):
         p = self.profile
-        # температура / pH штраф
-        t_pen = max(0, abs(env.temperature - p["optimal_temp"]) * 0.05)
-        ph_pen = max(0, abs(env.ph - p["optimal_ph"]) * 0.10)
-        self.size -= (t_pen + ph_pen)
-        if self.size < 1: self.is_alive = False
+        if (env.temperature < p["min_temp"] or env.temperature > p["max_temp"]
+                or env.ph < p["min_ph"] or env.ph > p["max_ph"]):
+            self.is_alive = False
 
     def _divide(self, env):
         child_size = self.size / 2
         self.size = child_size
         baby = Bacterium(self.x + random.uniform(-2, 2),
                          self.y + random.uniform(-2, 2),
-                         dict(self.profile))          # копия профиля
-        # мутация резистентности
+                         dict(self.profile))
+        baby.size = child_size
+        baby.vx = random.uniform(-1, 1)
+        baby.vy = random.uniform(-1, 1)
         if random.random() < 0.01:
             baby.profile["resistance"] = max(
                 0, min(1, baby.profile["resistance"] + random.uniform(-0.05, 0.05))
             )
         env.newborn.append(baby)
-
+# --------------------------------------------------------------
 class Fungus(Organism):
     def __init__(self, x, y, profile):
         super().__init__(x, y, profile, size=8)
         self.can_produce_ab = random.random() < profile["antibacterial_ability"]
 
     def update(self, env):
-        if not self.is_alive: return
+        if not self.is_alive:
+            return
+
         self._nutrition(env)
         self._check_env_limits(env)
+
         if self.can_produce_ab:
             self._release_ab(env)
-        # грибы почти не двигаются
-        self.vx *= 0.9; self.vy *= 0.9
+
+        self.vx *= 0.9
+        self.vy *= 0.9
         self._move(env)
 
+    # helpers ----------------------------------------------------
     def _nutrition(self, env):
-        cx, cy = env.cell_index(self.x, self.y)
+        cy, cx = env.cell_index(self.x, self.y)
         food = env.nutrient_map[cy][cx]
         if food > 0:
             eat = min(self.profile["nutrient_consumption"], food)
             env.nutrient_map[cy][cx] -= eat
             self.size += self.profile["growth_rate"]
         else:
-            self.size -= 0.01
-        if self.size < 2: self.is_alive = False
+            self.is_alive = False
 
     def _check_env_limits(self, env):
         p = self.profile
-        t_pen = max(0, abs(env.temperature - p["optimal_temp"]) * 0.03)
-        ph_pen = max(0, abs(env.ph - p["optimal_ph"]) * 0.05)
-        self.size -= (t_pen + ph_pen)
-        if self.size < 2: self.is_alive = False
+        if (env.temperature < p["min_temp"] or env.temperature > p["max_temp"]
+                or env.ph < p["min_ph"] or env.ph > p["max_ph"]):
+            self.is_alive = False
 
     def _release_ab(self, env):
         r = self.profile["antibacterial_radius"]
         dmg = self.profile["antibacterial_strength"]
-        for bact in env.grid.query_radius(self.x, self.y, r):
-            if isinstance(bact, Bacterium) and bact.is_alive:
-                if random.random() > bact.profile["resistance"]:
-                    bact.size -= dmg
-                    if bact.size < 1: bact.is_alive = False
+        for obj in env.grid.query_radius(self.x, self.y, r):
+            if isinstance(obj, Bacterium) and obj.is_alive:
+                if random.random() > obj.profile["resistance"]:
+                    obj.size -= dmg
+                    if obj.size < 1:
+                        obj.is_alive = False
