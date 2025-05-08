@@ -1,12 +1,8 @@
-# --------------------------------------------------------------
-# Организмы с уникальным uid и прежней логикой роста/деления.
-# --------------------------------------------------------------
 import itertools
 import math
 import random
 
 _uid_counter = itertools.count()      # глобальный счётчик uid-ов
-
 
 class Organism:
     # геометрия круглой чашки 500×500 → R = 250
@@ -14,7 +10,7 @@ class Organism:
     DISH_CX = DISH_CY = 250
 
     def __init__(self, x: float, y: float, profile: dict, size: float = 5.0):
-        self.uid = next(_uid_counter)        # ← уникальный id
+        self.uid = next(_uid_counter)        # уникальный id
 
         self.x, self.y = x, y
         self.size = size
@@ -40,7 +36,7 @@ class Organism:
         dy = self.y - self.DISH_CY
         dist2 = dx * dx + dy * dy
         if dist2 > self.DISH_R ** 2:
-            dist = dist2 ** 0.5
+            dist = math.sqrt(dist2)
             nx, ny = dx / dist, dy / dist
             overlap = dist - self.DISH_R
             self.x -= nx * overlap
@@ -50,8 +46,10 @@ class Organism:
             self.vy -= 2 * vn * ny
 
     # child classes must override update()
-    def update(self, env): ...
-# --------------------------------------------------------------
+    def update(self, env):
+        raise NotImplementedError
+
+
 class Bacterium(Organism):
     def __init__(self, x, y, profile):
         super().__init__(x, y, profile, size=5)
@@ -75,13 +73,12 @@ class Bacterium(Organism):
 
         if random.random() < 0.02:
             ang = math.radians(random.uniform(-15, 15))
-            speed = (self.vx ** 2 + self.vy ** 2) ** 0.5 or 4
+            speed = math.hypot(self.vx, self.vy) or 4
             self.vx = math.cos(ang) * speed
             self.vy = math.sin(ang) * speed
 
         self._move(env)
 
-    # helpers ----------------------------------------------------
     def _nutrition(self, env):
         cy, cx = env.cell_index(self.x, self.y)
         food = env.nutrient_map[cy][cx]
@@ -113,7 +110,8 @@ class Bacterium(Organism):
                 0, min(1, baby.profile["resistance"] + random.uniform(-0.05, 0.05))
             )
         env.newborn.append(baby)
-# --------------------------------------------------------------
+
+
 class Fungus(Organism):
     def __init__(self, x, y, profile):
         super().__init__(x, y, profile, size=8)
@@ -129,11 +127,12 @@ class Fungus(Organism):
         if self.can_produce_ab:
             self._release_ab(env)
 
-        self.vx *= 0.9
-        self.vy *= 0.9
+        # Убран автоматический damping скорости:
+        # self.vx *= 0.9
+        # self.vy *= 0.9
+
         self._move(env)
 
-    # helpers ----------------------------------------------------
     def _nutrition(self, env):
         cy, cx = env.cell_index(self.x, self.y)
         food = env.nutrient_map[cy][cx]

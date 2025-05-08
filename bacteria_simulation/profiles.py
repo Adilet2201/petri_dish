@@ -1,4 +1,5 @@
 # bacteria_simulation/profiles.py
+
 SPECIES_PROFILES = {
     "Coccus": {
         "color": "#FF0000",
@@ -30,17 +31,76 @@ SPECIES_PROFILES = {
         "min_temp": 10, "max_temp": 50, "optimal_temp": 40,
         "min_ph": 6.0, "max_ph": 9.5, "optimal_ph": 8.0,
     },
+    # Новые бактерии
+    "Bacillus": {
+        "color": "#FFA500",
+        "shape": "rod",
+        "growth_rate": 0.13,
+        "nutrient_consumption": 0.06,
+        "division_period_min": 22,
+        "resistance": 0.20,
+        "min_temp": 15, "max_temp": 50, "optimal_temp": 37,
+        "min_ph": 6.0, "max_ph": 8.0, "optimal_ph": 7.2,
+    },
+    "Lactobacillus": {
+        "color": "#800080",
+        "shape": "rod",
+        "growth_rate": 0.18,
+        "nutrient_consumption": 0.08,
+        "division_period_min": 16,
+        "resistance": 0.35,
+        "min_temp": 20, "max_temp": 45, "optimal_temp": 37,
+        "min_ph": 4.0, "max_ph": 6.5, "optimal_ph": 5.5,
+    },
+    "Actinomyces": {
+        "color": "#008000",
+        "shape": "spirillum",
+        "growth_rate": 0.11,
+        "nutrient_consumption": 0.05,
+        "division_period_min": 24,
+        "resistance": 0.50,
+        "min_temp": 15, "max_temp": 42, "optimal_temp": 30,
+        "min_ph": 6.0, "max_ph": 8.5, "optimal_ph": 7.0,
+    },
+    # Оригинальный гриб
     "Fungus": {
         "color": "#AA55AA",
         "shape": "fungus",
         "growth_rate": 0.02,
         "nutrient_consumption": 0.10,
         "max_size_before_spores": 20,
-        "antibacterial_ability": 0.25,        # 25 % штаммов умеют
+        "antibacterial_ability": 0.25,
         "antibacterial_radius": 35,
         "antibacterial_strength": 0.04,
         "min_temp": 0,  "max_temp": 45, "optimal_temp": 25,
         "min_ph": 4.0, "max_ph": 9.0, "optimal_ph": 6.5,
         "resistance": 0.30,
+    },
+    # Новые грибы
+    "Yeast": {
+        "color": "#FFD700",
+        "shape": "fungus",
+        "growth_rate": 0.04,
+        "nutrient_consumption": 0.08,
+        "max_size_before_spores": 15,
+        "antibacterial_ability": 0.10,
+        "antibacterial_radius": 20,
+        "antibacterial_strength": 0.02,
+        "min_temp": 10, "max_temp": 40, "optimal_temp": 30,
+        "min_ph": 4.5, "max_ph": 7.0, "optimal_ph": 5.0,
+        "resistance": 0.20,
+    },
+    "Mould": {
+        "color": "#A0522D",
+        "shape": "fungus",
+        "growth_rate": 0.01,
+        "nutrient_consumption": 0.12,
+        "max_size_before_spores": 25,
+        "antibacterial_ability": 0.40,
+        "antibacterial_radius": 50,
+        "antibacterial_strength": 0.06,
+        "min_temp": 5, "max_temp": 35, "optimal_temp": 22,
+        "min_ph": 5.0, "max_ph": 8.0, "optimal_ph": 6.0,
+        "resistance": 0.25,
     },
 }
