@@ -1,4 +1,4 @@
-evenlet
+eventlet
 python-socketio
 python-engineio
 flask-socketio
