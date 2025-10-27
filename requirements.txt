@@ -4,3 +4,4 @@ python-engineio
 flask-socketio
 Flask
 gunicorn
+numpy
