@@ -1,1 +1,6 @@
-python -m bacteria_simulation.run
+evenlet
+python-socketio
+python-engineio
+flask-socketio
+Flask
+gunicorn

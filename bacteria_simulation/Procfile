@@ -1,0 +1,1 @@
+web: gunicorn bacteria_simulation.app:app
