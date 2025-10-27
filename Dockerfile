@@ -15,4 +15,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 5050
 
 # Команда запуска
-CMD ["gunicorn", "petri_dish.run:app", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:5050"]
+CMD ["gunicorn", "run:app", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:${PORT}"]
